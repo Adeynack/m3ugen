@@ -3,9 +3,9 @@ package main
 import (
 	"flag"
 	"github.com/adeynack/m3ugen"
-	"github.com/olebedev/config"
+	"github.com/ghodss/yaml"
+	"io/ioutil"
 	"log"
-	"strconv"
 )
 
 func main() {
@@ -17,79 +17,23 @@ func main() {
 		log.Fatalln("No configuration file provided")
 	}
 
-	conf, err := config.ParseYamlFile(*configurationFile)
+	conf, err := loadConfiguration(*configurationFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	c := &m3ugen.Config{
-		Verbose:        getVerbose(conf),
-		OutputPath:     getOutputPath(conf),
-		ScanFolders:    getScanFolders(conf),
-		Extensions:     getExtensions(conf),
-		RandomizeList:  getRandomizeList(conf),
-		MaximumEntries: getMaximumEntries(conf),
-	}
-
-	m3ugen.Start(c)
+	m3ugen.Start(conf)
 }
 
-func getVerbose(conf *config.Config) bool {
-	return conf.UBool("verbose", false)
-}
-
-func getOutputPath(conf *config.Config) string {
-	outputPath, err := conf.String("output")
+func loadConfiguration(configurationFile string) (*m3ugen.Config, error) {
+	content, err := ioutil.ReadFile(configurationFile)
 	if err != nil {
-		log.Fatalf("must have an output path configured: %s\n", err)
+		return nil, err
 	}
-	if outputPath == "" {
-		log.Fatalln("must have an output path configured")
-	}
-	return outputPath
-}
-
-func getScanFolders(conf *config.Config) []string {
-	list, err := conf.List("scan")
+	conf := m3ugen.NewDefaultConfig()
+	err = yaml.Unmarshal(content, conf)
 	if err != nil {
-		log.Fatalf("could not get list of folder to scan: %s\n", err)
+		return nil, err
 	}
-	scan := make([]string, 0, len(list))
-	for _, elem := range list {
-		strElem, ok := elem.(string)
-		if !ok {
-			log.Fatalln("list of folders to scan must contain only strings")
-		}
-		scan = append(scan, strElem)
-	}
-	return scan
-}
-
-func getExtensions(conf *config.Config) []string {
-	list := conf.UList("extensions")
-	extensions := make([]string, 0, len(list))
-	for _, elem := range list {
-		strElem, ok := elem.(string)
-		if !ok {
-			log.Fatalln("list of extensions to scan for must contain only strings")
-		}
-		extensions = append(extensions, strElem)
-	}
-	return extensions
-}
-
-func getRandomizeList(conf *config.Config) bool {
-	return conf.UBool("randomize", false)
-}
-
-func getMaximumEntries(conf *config.Config) int64 {
-	rawMax := conf.UString("maximum_entries", "")
-	if rawMax == "" {
-		return -1
-	}
-	max, err := strconv.ParseInt(rawMax, 10, 64)
-	if err != nil {
-		log.Fatalf("cannot parse maximum entries: %s", err)
-	}
-	return max
+	return conf, nil
 }
