@@ -3,10 +3,9 @@ package m3ugen
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -77,10 +76,9 @@ func (r *ScanRun) addToFound(filePath string) {
 	r.FoundFilesPaths[filePath] = true
 }
 
-// todo: Replace `scan` by `filepath.Walk`
 func (r *ScanRun) scan() error {
 	for _, folder := range r.Config.ScanFolders {
-		err := r.scanFolder(folder)
+		err := filepath.Walk(folder, r.walkFolder)
 		if err != nil {
 			return err
 		}
@@ -88,26 +86,14 @@ func (r *ScanRun) scan() error {
 	return nil
 }
 
-func (r *ScanRun) scanFolder(folder string) error {
-	r.LogVerbose("Scanning folder %s", folder)
-	files, err := ioutil.ReadDir(folder)
+func (r *ScanRun) walkFolder(path string, info os.FileInfo, err error) error {
 	if err != nil {
 		return err
 	}
-	for _, file := range files {
-		fullPath := path.Join(folder, file.Name())
-		switch {
-		case file.IsDir():
-			err = r.scanFolder(fullPath)
-		default:
-			err = r.considerFile(fullPath)
-		}
-		if err != nil {
-			return err
-		}
+	if info.IsDir() {
+		return nil
 	}
-
-	return nil
+	return r.considerFile(path)
 }
 
 func (r *ScanRun) considerFileWithoutExtensionFilter(fullPath string) error {
