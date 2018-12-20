@@ -11,11 +11,14 @@ import (
 	"time"
 )
 
+const (
+	initialFoundFilesPathCapacity = 1 * (1024 ^ 2) // 1 Mi
+)
+
 type ScanRun struct {
 	Config *Config
 
-	// FoundFilesPaths is a set of found files. Value is irrelevant.
-	FoundFilesPaths map[string]bool
+	FoundFilesPaths []string
 
 	// FoundExtensions is a list of observed extensions. Value is true when
 	// the extension was considered and false when excluded.
@@ -36,7 +39,7 @@ func Start(config *Config) (*ScanRun, error) {
 	var err error
 	r := &ScanRun{
 		Config:          config,
-		FoundFilesPaths: make(map[string]bool, initialScanSliceCap),
+		FoundFilesPaths: make([]string, 0, initialFoundFilesPathCapacity),
 	}
 	if len(config.Extensions) == 0 {
 		r.considerFile = r.considerFileWithoutExtensionFilter
@@ -51,6 +54,10 @@ func Start(config *Config) (*ScanRun, error) {
 	err = r.scan()
 	if err != nil {
 		return nil, err
+	}
+
+	if config.DetectDuplicates {
+		r.detectDuplicates()
 	}
 
 	err = r.writePlaylist()
@@ -69,11 +76,6 @@ func (r *ScanRun) LogVerbose(format string, a ...interface{}) {
 	if r.Config.Verbose {
 		fmt.Println(fmt.Sprintf(format, a...))
 	}
-}
-
-func (r *ScanRun) addToFound(filePath string) {
-	r.LogVerbose("Considering file %s", filePath)
-	r.FoundFilesPaths[filePath] = true
 }
 
 func (r *ScanRun) scan() error {
@@ -98,7 +100,7 @@ func (r *ScanRun) walkFolder(path string, info os.FileInfo, err error) error {
 
 func (r *ScanRun) considerFileWithoutExtensionFilter(fullPath string) error {
 	r.LogVerbose("File %q is considered", fullPath)
-	r.FoundFilesPaths[fullPath] = true
+	r.FoundFilesPaths = append(r.FoundFilesPaths, fullPath)
 	return nil
 }
 
@@ -113,7 +115,7 @@ func (r *ScanRun) considerFileWithExtensionFilter(fullPath string) error {
 			//r.LogVerbose(
 			//	"File %q matches configured extension %q and is being considered",
 			//	fullPath, configuredExtension)
-			r.FoundFilesPaths[fullPath] = true
+			r.FoundFilesPaths = append(r.FoundFilesPaths, fullPath)
 			return nil
 		}
 	}
@@ -126,8 +128,7 @@ func (r *ScanRun) considerFileWithExtensionFilter(fullPath string) error {
 
 func (r *ScanRun) writePlaylist() (err error) {
 	fileList := make([]string, len(r.FoundFilesPaths))
-	i := 0
-	for file := range r.FoundFilesPaths {
+	for i, file := range r.FoundFilesPaths {
 		fileList[i] = file
 		i++
 	}
@@ -177,6 +178,26 @@ func (r *ScanRun) logExcludedExtensions() {
 	}
 	excludedList := strings.Join(excluded, ", ")
 	r.LogVerbose("Extensions not considered: %s", excludedList)
+}
+
+func (r *ScanRun) detectDuplicates() {
+	r.LogVerbose("Detecting duplicates")
+	fileCounter := make(map[string]int)
+	for _, f := range r.FoundFilesPaths {
+		c, ok := fileCounter[f]
+		if !ok {
+			c = 0
+		}
+		fileCounter[f] = c + 1
+	}
+	duplicatesCount := 0
+	for f, c := range fileCounter {
+		if c > 1 {
+			r.LogVerbose("File %q is present %d times in the search", f, c)
+			duplicatesCount++
+		}
+	}
+	r.LogVerbose("%d files were detected as duplicates", duplicatesCount)
 }
 
 func shuffle(a []string) {

@@ -1,9 +1,5 @@
 package m3ugen
 
-const (
-	initialScanSliceCap = 10000
-)
-
 // Config is the configuration a playlist generation needs to be
 // performed.
 //
@@ -17,13 +13,17 @@ const (
 // 					scanned (false) or in a randomised way (true).
 // MaximumEntries	Maximum entries to output in the playlist
 //					-1 means "none".
+// DetectDuplicates If the tool should report duplicate entries in the detected
+//					files (the configured path could be duplicates or include one
+//					another).
 type Config struct {
-	Verbose        bool     `json:"verbose"`
-	OutputPath     string   `json:"output"`
-	ScanFolders    []string `json:"scan"`
-	Extensions     []string `json:"extensions"`
-	RandomizeList  bool     `json:"randomize"`
-	MaximumEntries int64    `json:"maximum_entries"`
+	Verbose          bool     `json:"verbose"`
+	OutputPath       string   `json:"output"`
+	ScanFolders      []string `json:"scan"`
+	Extensions       []string `json:"extensions"`
+	RandomizeList    bool     `json:"randomize"`
+	MaximumEntries   int64    `json:"maximum_entries"`
+	DetectDuplicates bool     `json:"detect_duplicates"`
 }
 
 func NewDefaultConfig() *Config {
