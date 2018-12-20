@@ -138,7 +138,7 @@ func (r *ScanRun) considerFileWithExtensionFilter(fullPath string) error {
 	return nil
 }
 
-func (r *ScanRun) writePlaylist() error {
+func (r *ScanRun) writePlaylist() (err error) {
 	fileList := make([]string, len(r.FoundFilesPaths))
 	i := 0
 	for file := range r.FoundFilesPaths {
@@ -163,22 +163,23 @@ func (r *ScanRun) writePlaylist() error {
 	}
 
 	r.LogVerbose("Writing playlist to %s", r.Config.OutputPath)
-	f, err := os.OpenFile(r.Config.OutputPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, os.ModePerm)
+	f, err := os.OpenFile(r.Config.OutputPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
-		return err
+		return
 	}
-	defer f.Close()
+	defer func() {
+		err = f.Close()
+	}()
 
 	w := bufio.NewWriter(f)
 	for _, entry := range fileList[:max] {
 		_, err = fmt.Fprintln(w, entry)
 		if err != nil {
-			return err
+			return
 		}
 	}
-	w.Flush()
-
-	return nil
+	err = w.Flush()
+	return
 }
 
 func (r *ScanRun) logExcludedExtensions() {

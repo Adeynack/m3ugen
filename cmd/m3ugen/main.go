@@ -10,19 +10,22 @@ import (
 
 func main() {
 
-	configurationFile := flag.String("conf", "", "Path to the configuration YAML file.")
 	flag.Parse()
+	configurationFile := flag.Arg(0)
 
-	if configurationFile == nil {
+	if configurationFile == "" {
 		log.Fatalln("No configuration file provided")
 	}
 
-	conf, err := loadConfiguration(*configurationFile)
+	conf, err := loadConfiguration(configurationFile)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	m3ugen.Start(conf)
+	_, err = m3ugen.Start(conf)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 
 func loadConfiguration(configurationFile string) (*m3ugen.Config, error) {
