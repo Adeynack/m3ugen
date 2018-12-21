@@ -1,11 +1,11 @@
-package m3ugen
+package pkg
 
 import (
 	"bufio"
 	"fmt"
+	"github.com/adeynack/m3ugen"
 	"math/rand"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -16,22 +16,20 @@ const (
 )
 
 type ScanRun struct {
-	Config *Config
+	Config *m3ugen.Config
 
 	FoundFilesPaths []string
 
 	// FoundExtensions is a list of observed extensions. Value is true when
 	// the extension was considered and false when excluded.
 	FoundExtensions map[string]bool
-
-	considerFile func(fullPath string) error
 }
 
 var (
 	regexGetFileExtension = regexp.MustCompile("^.*\\.(.*)$")
 )
 
-func Start(config *Config) (*ScanRun, error) {
+func Start(config *m3ugen.Config) (*ScanRun, error) {
 	//if config.Verbose {
 	//	fmt.Printf("Starting scan & generate process using config %+v\n", config)
 	//}
@@ -40,12 +38,6 @@ func Start(config *Config) (*ScanRun, error) {
 	r := &ScanRun{
 		Config:          config,
 		FoundFilesPaths: make([]string, 0, initialFoundFilesPathCapacity),
-	}
-	if len(config.Extensions) == 0 {
-		r.considerFile = r.considerFileWithoutExtensionFilter
-	} else {
-		r.considerFile = r.considerFileWithExtensionFilter
-		r.FoundExtensions = make(map[string]bool)
 	}
 	if err != nil {
 		return nil, err
@@ -76,54 +68,6 @@ func (r *ScanRun) LogVerbose(format string, a ...interface{}) {
 	if r.Config.Verbose {
 		fmt.Println(fmt.Sprintf(format, a...))
 	}
-}
-
-func (r *ScanRun) scan() error {
-	for _, folder := range r.Config.ScanFolders {
-		err := filepath.Walk(folder, r.walkFolder)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (r *ScanRun) walkFolder(path string, info os.FileInfo, err error) error {
-	if err != nil {
-		return err
-	}
-	if info.IsDir() {
-		return nil
-	}
-	return r.considerFile(path)
-}
-
-func (r *ScanRun) considerFileWithoutExtensionFilter(fullPath string) error {
-	r.LogVerbose("File %q is considered", fullPath)
-	r.FoundFilesPaths = append(r.FoundFilesPaths, fullPath)
-	return nil
-}
-
-func (r *ScanRun) considerFileWithExtensionFilter(fullPath string) error {
-	matches := regexGetFileExtension.FindStringSubmatch(fullPath)
-	currentFileExtension := ""
-	if len(matches) > 1 {
-		currentFileExtension = matches[len(matches)-1]
-	}
-	for _, configuredExtension := range r.Config.Extensions {
-		if strings.EqualFold(configuredExtension, currentFileExtension) {
-			//r.LogVerbose(
-			//	"File %q matches configured extension %q and is being considered",
-			//	fullPath, configuredExtension)
-			r.FoundFilesPaths = append(r.FoundFilesPaths, fullPath)
-			return nil
-		}
-	}
-	//r.LogVerbose(
-	//	"File %q does not match any configured extension and is being ignored",
-	//	fullPath)
-	r.FoundExtensions[currentFileExtension] = false
-	return nil
 }
 
 func (r *ScanRun) writePlaylist() (err error) {

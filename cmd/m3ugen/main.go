@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/adeynack/m3ugen"
+	"github.com/adeynack/m3ugen/pkg"
 	"github.com/ghodss/yaml"
 	"io/ioutil"
 	"log"
@@ -22,7 +23,7 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	_, err = m3ugen.Start(conf)
+	_, err = pkg.Start(conf)
 	if err != nil {
 		log.Fatalln(err)
 	}
