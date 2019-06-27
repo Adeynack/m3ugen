@@ -3,13 +3,14 @@ package pkg
 import (
 	"bufio"
 	"fmt"
-	"github.com/adeynack/m3ugen"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/adeynack/m3ugen"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -18,7 +19,7 @@ const (
 
 var (
 	currentTime = time.Now()
-	currentId   = int32(0)
+	currentID   = int32(0)
 )
 
 // todo: Test with no `output`
@@ -44,9 +45,9 @@ func Test_FullConfigAndScan(t *testing.T) {
 
 func Test_FullConfigAndScan_Maximum3(t *testing.T) {
 	config := &m3ugen.Config{
-		Extensions:    []string{"mpg", "mp4"},
-		RandomizeList: false,
-		MaximumEntries:3,
+		Extensions:     []string{"mpg", "mp4"},
+		RandomizeList:  false,
+		MaximumEntries: 3,
 	}
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 3)
@@ -58,9 +59,9 @@ func Test_FullConfigAndScan_Maximum3(t *testing.T) {
 }
 
 type entriesTest struct {
-	t *testing.T
+	t        *testing.T
 	basePath string
-	entries []string
+	entries  []string
 }
 
 func (t *entriesTest) containsFile(expectedPathParts ...string) {
@@ -82,7 +83,7 @@ func withTestFolder(
 	testFunc func(t *testing.T, basePath string, entries []string),
 ) {
 	// CREATE FOLDERS AND FILES FOR TESTING
-	uid := atomic.AddInt32(&currentId, 1)
+	uid := atomic.AddInt32(&currentID, 1)
 	testFolderName := filepath.Join(
 		os.TempDir(),
 		fmt.Sprintf("%s_%d_%d", testDirectoryPath, currentTime.Unix(), uid))
@@ -105,7 +106,7 @@ func withTestFolder(
 	// SCAN AND GENERATE M3U
 	testConfiguration.ScanFolders = []string{testFolderName}
 	testConfiguration.OutputPath = filepath.Join(testFolderName, "playlist.m3u")
-	m3ugen.Start(testConfiguration)
+	Start(testConfiguration)
 
 	// PARSE THE GENERATED M3U
 	entries, err := parseGeneratedPlaylist(testConfiguration.OutputPath)

@@ -3,18 +3,20 @@ package pkg
 import (
 	"bufio"
 	"fmt"
-	"github.com/adeynack/m3ugen"
 	"math/rand"
 	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/adeynack/m3ugen"
 )
 
 const (
 	initialFoundFilesPathCapacity = 1 * (1024 ^ 2) // 1 Mi
 )
 
+// ScanRun represents a scan & playlist generation process.
 type ScanRun struct {
 	Config *m3ugen.Config
 
@@ -29,6 +31,7 @@ var (
 	regexGetFileExtension = regexp.MustCompile("^.*\\.(.*)$")
 )
 
+// Start begins the process of scanning and generating the playlist.
 func Start(config *m3ugen.Config) (*ScanRun, error) {
 	//if config.Verbose {
 	//	fmt.Printf("Starting scan & generate process using config %+v\n", config)
@@ -64,6 +67,7 @@ func Start(config *m3ugen.Config) (*ScanRun, error) {
 	return r, nil
 }
 
+// LogVerbose outputs a message only when `verbose` mode is activated.
 func (r *ScanRun) LogVerbose(format string, a ...interface{}) {
 	if r.Config.Verbose {
 		fmt.Println(fmt.Sprintf(format, a...))
