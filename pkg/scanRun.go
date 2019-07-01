@@ -76,10 +76,7 @@ func (r *ScanRun) LogVerbose(format string, a ...interface{}) {
 
 func (r *ScanRun) writePlaylist() (err error) {
 	fileList := make([]string, len(r.FoundFilesPaths))
-	for i, file := range r.FoundFilesPaths {
-		fileList[i] = file
-		i++
-	}
+	copy(fileList, r.FoundFilesPaths)
 	if r.Config.RandomizeList {
 		r.LogVerbose("Shuffling the found files")
 		shuffle(fileList)
@@ -103,17 +100,19 @@ func (r *ScanRun) writePlaylist() (err error) {
 		return
 	}
 	defer func() {
-		err = f.Close()
+		err = FirstErr(err, f.Close())
 	}()
 
 	w := bufio.NewWriter(f)
+	defer func() {
+		err = FirstErr(err, w.Flush())
+	}()
 	for _, entry := range fileList[:max] {
 		_, err = fmt.Fprintln(w, entry)
 		if err != nil {
 			return
 		}
 	}
-	err = w.Flush()
 	return
 }
 

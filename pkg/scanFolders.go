@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	workerCount = 4
-	reportInterval = time.Second * 5
+	workerCount    = 4
+	reportInterval = 5 * time.Second
 )
 
 func (r *ScanRun) scan() error {
