@@ -28,6 +28,7 @@ func Test_FullConfigAndScan(t *testing.T) {
 	config := &m3ugen.Config{
 		Extensions:    []string{"mpg", "mp4"},
 		RandomizeList: false,
+		Verbose:       true,
 	}
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 8)

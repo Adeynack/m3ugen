@@ -1,22 +1,21 @@
 package pkg
 
 import (
-	"os"
-	"path/filepath"
+	"io/ioutil"
+	"path"
 	"strings"
 	"sync"
 	"time"
 )
 
 const (
-	workerCount    = 4
 	reportInterval = 5 * time.Second
 )
 
 func (r *ScanRun) scan() error {
-	folderToScanChan := make(chan string)
+	folderToScanChan := make(chan string, 32)
 	defer close(folderToScanChan)
-	filesToConsiderChan := make(chan string)
+	filesToConsiderChan := make(chan string, 1024)
 	errChan := make(chan error)
 	defer close(errChan)
 	foundFileChan := make(chan string)
@@ -29,15 +28,15 @@ func (r *ScanRun) scan() error {
 	go r.manageErrorsWorker(errChan)
 
 	receiveFilesWorkersWG := new(sync.WaitGroup)
-	receiveFilesWorkersWG.Add(workerCount)
-	for i := 0; i < workerCount; i++ {
+	receiveFilesWorkersWG.Add(r.Config.ReceiveFilesWorkers)
+	for i := 0; i < r.Config.ReceiveFilesWorkers; i++ {
 		go r.receiveFilesWorker(receiveFilesWorkersWG, filesToConsiderChan, foundFileChan, excludedExtensionChan)
 	}
 
 	// Start scan workers + Feed with folders to scan + Wait for their completion
 	foldersToScanWG := new(sync.WaitGroup)
 	foldersToScanWG.Add(len(r.Config.ScanFolders))
-	for i := 0; i < workerCount; i++ {
+	for i := 0; i < r.Config.ScanFolderWorkers; i++ {
 		go r.scanFolderWorker(i, folderToScanChan, filesToConsiderChan, errChan, foldersToScanWG)
 	}
 	for _, folder := range r.Config.ScanFolders {
@@ -55,34 +54,39 @@ func (r *ScanRun) scan() error {
 
 func (r *ScanRun) scanFolderWorker(
 	workerNumber int,
-	folderToScanChan <-chan string,
+	folderToScanChan chan string,
 	filesToConsiderChan chan<- string,
 	errChan chan<- error,
-	wg *sync.WaitGroup,
+	foldersToScanWG *sync.WaitGroup,
 ) {
 	r.LogVerbose("[scanFolderWorker %d] Starting", workerNumber)
 	defer r.LogVerbose("[scanFolderWorker %d] Done", workerNumber)
 	for {
-		select {
-		case f, ok := <-folderToScanChan:
-			if !ok {
-				return
-			}
-			r.LogVerbose("[scanFolderWorker %d] Scanning %q", workerNumber, f)
-			err := filepath.Walk(f, func(path string, info os.FileInfo, err error) error {
-				if err != nil {
-					return err
-				}
-				if !info.IsDir() {
+		f, ok := <-folderToScanChan
+		if !ok {
+			return
+		}
+		r.LogVerbose("[scanFolderWorker %d] Scanning %q", workerNumber, f)
+		files, err := ioutil.ReadDir(f)
+		if err != nil {
+			errChan <- err
+		} else {
+			// foldersInDir := make([]string, 0)
+			for _, file := range files {
+				path := path.Join(f, file.Name())
+				switch {
+				case file.IsDir():
+					// foldersInDir = append(foldersInDir, path)
+					foldersToScanWG.Add(1)
+					go func(p string) {
+						folderToScanChan <- p
+					}(path)
+				default:
 					filesToConsiderChan <- path
 				}
-				return nil
-			})
-			if err != nil {
-				errChan <- err
 			}
-			wg.Done()
 		}
+		foldersToScanWG.Done()
 	}
 }
 
