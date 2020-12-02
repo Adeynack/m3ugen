@@ -1,0 +1,21 @@
+# Path to the output m3u file
+output: example.m3u
+
+# Will display detailed information
+verbose: true
+
+# Will randomize the output list
+randomize: true
+
+# Limits the number of entries in the playlist.
+maximum: 20
+
+# List of folders to scan
+scan:
+  - ./test_folder_to_scan/foo
+  - ./test_folder_to_scan/bar
+
+# Will scan for e -> "*.$e"
+extensions:
+  - mp4
+  - mpg
