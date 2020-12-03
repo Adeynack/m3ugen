@@ -1,3 +1,8 @@
 {
-  "recommendations": ["vadimcn.vscode-lldb"]
+  "recommendations": [
+    "vadimcn.vscode-lldb",
+    "matklad.rust-analyzer",
+    "bungcip.better-toml",
+    "editorconfig.editorconfig"
+  ]
 }
