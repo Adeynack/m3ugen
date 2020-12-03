@@ -4,9 +4,29 @@
     {
       "type": "lldb",
       "request": "launch",
-      "name": "Debug",
-      "program": "${workspaceFolder}/target/debug/m3ugen",
+      "name": "Debug executable 'm3ugen'",
+      "cargo": {
+        "args": ["build", "--bin=m3ugen", "--package=m3ugen"],
+        "filter": {
+          "name": "m3ugen",
+          "kind": "bin"
+        }
+      },
       "args": ["./doc/config_example.yaml"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'm3ugen'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=m3ugen", "--package=m3ugen"],
+        "filter": {
+          "name": "m3ugen",
+          "kind": "bin"
+        }
+      },
+      "args": [],
       "cwd": "${workspaceFolder}"
     }
   ]

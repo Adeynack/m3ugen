@@ -1,4 +1,7 @@
+use std::fs;
+
 use serde::Deserialize;
+use simple_error::SimpleError;
 
 #[derive(Debug, Deserialize)]
 pub struct Configuration {
@@ -25,4 +28,18 @@ fn default_as_false() -> bool {
 }
 fn default_output_path() -> String {
     String::new()
+}
+
+impl Configuration {
+    pub fn load_from_file(path: &str) -> Result<Configuration, SimpleError> {
+        let config_content = fs::read_to_string(path).map_err(|err| {
+            SimpleError::new(format!(
+                "Unable to read content of the configuration file: {}",
+                err
+            ))
+        })?;
+        serde_yaml::from_str::<Configuration>(&config_content).map_err(|err| {
+            SimpleError::new(format!("Unable to parse configuration from YAML: {}", err))
+        })
+    }
 }

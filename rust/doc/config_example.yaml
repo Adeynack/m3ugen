@@ -12,8 +12,8 @@ maximum: 20
 
 # List of folders to scan
 scan:
-  - ./test_folder_to_scan/foo
-  - ./test_folder_to_scan/bar
+  - ./doc/test_folder_to_scan/foo
+  - ./doc/test_folder_to_scan/bar
 
 # Will scan for e -> "*.$e"
 extensions:
