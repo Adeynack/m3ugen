@@ -1,10 +1,12 @@
+#[macro_use]
+extern crate simple_error;
+
 mod configuration;
 mod scan;
 
 use configuration::Configuration;
 use scan::scan;
-use simple_error::SimpleError;
-use std::{env, process};
+use std::{env, error::Error, process};
 
 fn main() {
     if let Err(err) = main_or_error() {
@@ -13,21 +15,18 @@ fn main() {
     }
 }
 
-fn main_or_error() -> Result<(), SimpleError> {
+fn main_or_error() -> Result<(), Box<dyn Error>> {
     println!("---=== m3u Playlist Generator ===---");
 
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        return Err(SimpleError::new(
-            "Expecting the configuration file as argument.",
-        ));
+        bail!("Expecting the configuration file as argument.")
     }
 
     let config_file_path = &args[1];
     let config = Configuration::load_from_file(config_file_path)?;
 
     let scan_result = scan(&config)?;
-    // println!("Scan Result: {:?}", scan_result);
     println!("Files found:");
     scan_result
         .found_file_paths

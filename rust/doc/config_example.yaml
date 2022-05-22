@@ -1,5 +1,5 @@
 # Path to the output m3u file
-output: example.m3u
+output: target/example.m3u
 
 # Will display detailed information
 verbose: true

@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{collections::HashSet, error::Error, fs, path::Path};
 
 use simple_error::SimpleError;
 
@@ -7,61 +7,66 @@ use crate::configuration::Configuration;
 #[derive(Debug)]
 pub struct ScanResult {
     pub found_file_paths: Vec<String>,
-    pub excluded_extensions: Vec<String>,
+    pub excluded_extensions: HashSet<String>,
 }
 
 impl ScanResult {
     pub fn new() -> Self {
         Self {
-            found_file_paths: vec![],
-            excluded_extensions: vec![],
+            found_file_paths: Vec::new(),
+            excluded_extensions: HashSet::new(),
         }
     }
 }
 
 pub fn scan(configuration: &Configuration) -> Result<ScanResult, SimpleError> {
-    let mut result = ScanResult::new();
-
-    for folder in &configuration.scan_folders {
-        scan_folder(&configuration, Path::new(folder), &mut result)
-            .map_err(|err| SimpleError::new(format!("Unable to scan folder: {}", err)))?;
-    }
-
-    Ok(result)
+    let mut scan_session = Scan {
+        result: ScanResult::new(),
+    };
+    scan_session.start(configuration)?;
+    Ok(scan_session.result)
 }
 
-fn scan_folder(
-    configuration: &Configuration,
-    folder_path: &Path,
-    result: &mut ScanResult,
-) -> Result<(), SimpleError> {
-    let read_dir = fs::read_dir(folder_path).map_err(|err| {
-        SimpleError::new(format!(
-            "Unable to read directory {:?}: {}",
-            folder_path, err
-        ))
-    })?;
-    for entry in read_dir {
-        let entry = entry.map_err(|err| SimpleError::new(err.to_string()))?;
-        let path = entry.path();
-        if path.is_dir() {
-            scan_folder(&configuration, &path, result)?;
-        } else {
-            consider_file_path(&configuration, &path, result)?;
+struct Scan {
+    result: ScanResult,
+}
+
+impl Scan {
+    fn start(&mut self, configuration: &Configuration) -> Result<(), SimpleError> {
+        for folder in &configuration.scan_folders {
+            self.scan_folder(&configuration, Path::new(folder))
+                .map_err(|e| simple_error!("Unable to scan folder: {}", e))?;
         }
+
+        Ok(())
     }
 
-    Ok(())
-}
+    fn scan_folder(
+        &mut self,
+        configuration: &Configuration,
+        folder_path: &Path,
+    ) -> Result<(), Box<dyn Error>> {
+        let read_dir = fs::read_dir(folder_path)
+            .map_err(|e| simple_error!("Unable to read directory {:?}: {}", folder_path, e))?;
+        for entry in read_dir {
+            let path = entry?.path();
+            if path.is_dir() {
+                self.scan_folder(&configuration, &path)?;
+            } else {
+                self.consider_file_path(&configuration, &path)?;
+            }
+        }
 
-fn consider_file_path(
-    _configuration: &Configuration,
-    file_path: &Path,
-    result: &mut ScanResult,
-) -> Result<(), SimpleError> {
-    let file_path_str = file_path.to_str().ok_or_else(|| {
-        SimpleError::new(format!("Path didn't extract to string: {:?}", file_path))
-    })?;
-    result.found_file_paths.push(file_path_str.to_string());
-    Ok(())
+        Ok(())
+    }
+
+    fn consider_file_path(
+        &mut self,
+        _configuration: &Configuration,
+        file_path: &Path,
+    ) -> Result<(), SimpleError> {
+        let file_path_str = file_path.to_str().unwrap();
+        self.result.found_file_paths.push(file_path_str.to_string());
+        Ok(())
+    }
 }

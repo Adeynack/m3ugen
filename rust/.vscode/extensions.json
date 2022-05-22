@@ -1,7 +1,7 @@
 {
   "recommendations": [
+    "rust-lang.rust",
     "vadimcn.vscode-lldb",
-    "matklad.rust-analyzer",
     "bungcip.better-toml",
     "editorconfig.editorconfig"
   ]
