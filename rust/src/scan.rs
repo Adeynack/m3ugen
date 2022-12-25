@@ -33,7 +33,15 @@ struct Scan<'a> {
 }
 
 impl Scan<'_> {
+    fn verbose_print(&self, message: String) {
+        if self.configuration.verbose {
+            eprintln!("{}", message);
+        }
+    }
+
     fn start(&mut self) -> Result<()> {
+        self.verbose_print("---=== m3u Playlist Generator ===---".to_owned());
+
         for folder in &self.configuration.scan_folders {
             self.scan_folder(Path::new(folder))
                 .map_err(|e| eyre!("Unable to scan folder: {}", e))?;
@@ -43,6 +51,10 @@ impl Scan<'_> {
     }
 
     fn scan_folder(&mut self, folder_path: &Path) -> Result<()> {
+        self.verbose_print(format!(
+            "Scanning folder {}",
+            folder_path.to_str().unwrap_or("?")
+        ));
         let read_dir = fs::read_dir(folder_path)
             .map_err(|e| eyre!("Unable to read directory {:?}: {}", folder_path, e))?;
         for entry in read_dir {

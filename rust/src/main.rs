@@ -18,10 +18,6 @@ fn main() -> Result<()> {
     let config_file_path = &args[1];
     let config = Configuration::load_from_file(config_file_path)?;
 
-    if config.verbose {
-        println!("---=== m3u Playlist Generator ===---");
-    }
-
     let scan_result = scan(&config)?;
     println!("Files found:");
     scan_result
