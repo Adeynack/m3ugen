@@ -4,6 +4,7 @@ use eyre::Result;
 use std::{collections::HashSet, fs, path::Path};
 
 #[derive(Debug)]
+#[allow(clippy::module_name_repetitions)]
 pub struct ScanResult {
     pub found_file_paths: Vec<String>,
     pub excluded_extensions: HashSet<String>,
@@ -33,14 +34,14 @@ struct Scan<'a> {
 }
 
 impl Scan<'_> {
-    fn verbose_print(&self, message: String) {
+    fn verbose_print(&self, message: &str) {
         if self.configuration.verbose {
-            eprintln!("{}", message);
+            eprint!("{message}");
         }
     }
 
     fn start(&mut self) -> Result<()> {
-        self.verbose_print("---=== m3u Playlist Generator ===---".to_owned());
+        self.verbose_print("---=== m3u Playlist Generator ===---");
 
         for folder in &self.configuration.scan_folders {
             self.scan_folder(Path::new(folder))
@@ -51,10 +52,9 @@ impl Scan<'_> {
     }
 
     fn scan_folder(&mut self, folder_path: &Path) -> Result<()> {
-        self.verbose_print(format!(
-            "Scanning folder {}",
-            folder_path.to_str().unwrap_or("?")
-        ));
+        self.verbose_print(
+            format!("Scanning folder {}", folder_path.to_str().unwrap_or("?")).as_str(),
+        );
         let read_dir = fs::read_dir(folder_path)
             .map_err(|e| eyre!("Unable to read directory {:?}: {}", folder_path, e))?;
         for entry in read_dir {
@@ -70,7 +70,9 @@ impl Scan<'_> {
     }
 
     fn consider_file_path(&mut self, file_path: &Path) -> Result<()> {
-        let file_path_str = file_path.to_str().unwrap();
+        let file_path_str = file_path
+            .to_str()
+            .ok_or(eyre!("unexpected 'None' file path"))?;
         self.result.found_file_paths.push(file_path_str.to_string());
         Ok(())
     }

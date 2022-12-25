@@ -25,7 +25,7 @@ const fn default_as_true() -> bool {
 }
 
 impl Configuration {
-    pub fn load_from_file(path: &str) -> Result<Configuration> {
+    pub fn load_from_file(path: &str) -> Result<Self> {
         let config_content = fs::read_to_string(path)?;
         Ok(serde_yaml::from_str(&config_content)?)
     }
