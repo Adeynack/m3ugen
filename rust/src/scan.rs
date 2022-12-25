@@ -1,8 +1,7 @@
-use std::{collections::HashSet, error::Error, fs, path::Path};
-
-use simple_error::SimpleError;
-
 use crate::configuration::Configuration;
+use eyre::eyre;
+use eyre::Result;
+use std::{collections::HashSet, error::Error, fs, path::Path};
 
 #[derive(Debug)]
 pub struct ScanResult {
@@ -19,7 +18,7 @@ impl ScanResult {
     }
 }
 
-pub fn scan(configuration: &Configuration) -> Result<ScanResult, SimpleError> {
+pub fn scan(configuration: &Configuration) -> Result<ScanResult> {
     let mut scan_session = Scan {
         result: ScanResult::new(),
     };
@@ -32,10 +31,10 @@ struct Scan {
 }
 
 impl Scan {
-    fn start(&mut self, configuration: &Configuration) -> Result<(), SimpleError> {
+    fn start(&mut self, configuration: &Configuration) -> Result<()> {
         for folder in &configuration.scan_folders {
             self.scan_folder(&configuration, Path::new(folder))
-                .map_err(|e| simple_error!("Unable to scan folder: {}", e))?;
+                .map_err(|e| eyre!("Unable to scan folder: {}", e))?;
         }
 
         Ok(())
@@ -47,7 +46,7 @@ impl Scan {
         folder_path: &Path,
     ) -> Result<(), Box<dyn Error>> {
         let read_dir = fs::read_dir(folder_path)
-            .map_err(|e| simple_error!("Unable to read directory {:?}: {}", folder_path, e))?;
+            .map_err(|e| eyre!("Unable to read directory {:?}: {}", folder_path, e))?;
         for entry in read_dir {
             let path = entry?.path();
             if path.is_dir() {
@@ -64,7 +63,7 @@ impl Scan {
         &mut self,
         _configuration: &Configuration,
         file_path: &Path,
-    ) -> Result<(), SimpleError> {
+    ) -> Result<()> {
         let file_path_str = file_path.to_str().unwrap();
         self.result.found_file_paths.push(file_path_str.to_string());
         Ok(())

@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate simple_error;
-
 mod configuration;
 mod scan;
 
