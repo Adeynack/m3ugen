@@ -1,7 +1,14 @@
-m3ugen -- Rust Edition
-===
+# m3ugen -- Rust Edition
 
 ## Develop This
+
+### Prerequisite
+
+Have `cargo-watch` installed.
+
+```bash
+cargo install cargo-watch
+```
 
 ### Re-Run on Save
 
