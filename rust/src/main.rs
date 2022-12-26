@@ -1,11 +1,10 @@
 mod configuration;
 mod scan;
 
+use clap::Parser;
 use configuration::Configuration;
-use eyre::eyre;
 use eyre::Result;
 use scan::scan;
-use std::env;
 
 #[warn(clippy::suspicious)]
 #[warn(clippy::complexity)]
@@ -20,11 +19,11 @@ use std::env;
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let args: Vec<String> = env::args().collect();
-    let config = args.get(1).map_or(
-        Err(eyre!("Expecting the configuration file as argument.")),
-        |config_file_path| Configuration::load_from_file(config_file_path),
-    )?;
+    let cli = Configuration::parse();
+    let config = match cli.config {
+        Some(ref config_path) => Configuration::load_from_file(&config_path)?.merge(cli),
+        None => cli,
+    };
     if config.debug {
         if let Ok(pretty_config) = serde_json::to_string_pretty(&config) {
             eprintln!("Loaded configuration:");
