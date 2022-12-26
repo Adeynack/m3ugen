@@ -36,14 +36,14 @@ struct Scan<'a> {
 impl Scan<'_> {
     fn verbose_print(&self, message: &str) {
         if self.configuration.verbose {
-            eprint!("{message}");
+            eprintln!("{message}");
         }
     }
 
     fn start(&mut self) -> Result<()> {
         self.verbose_print("---=== m3u Playlist Generator ===---");
 
-        for folder in &self.configuration.scan_folders {
+        for folder in &self.configuration.scan {
             self.scan_folder(Path::new(folder))
                 .map_err(|e| eyre!("Unable to scan folder: {}", e))?;
         }

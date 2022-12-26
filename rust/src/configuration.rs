@@ -1,21 +1,30 @@
 use std::fs;
 
 use eyre::Result;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Configuration {
+    #[serde(skip_deserializing)]
+    pub config: Option<String>,
+
+    pub debug: bool,
+
     pub verbose: bool,
-    #[serde(alias = "output", default = "String::new")]
-    pub output_path: String,
-    #[serde(alias = "scan", default = "Vec::new")]
-    pub scan_folders: Vec<String>,
+
+    #[serde(default = "String::new")]
+    pub output: String,
+
+    #[serde(default = "Vec::new")]
+    pub scan: Vec<String>,
+
     #[serde(default = "Vec::new")]
     pub extensions: Vec<String>,
-    #[serde(alias = "randomize")]
-    pub randomize_list: bool,
-    #[serde(alias = "maximum")]
-    pub maximum_entries: Option<i64>,
+
+    pub randomize: bool,
+
+    pub maximum: Option<i64>,
+
     #[serde(default = "default_as_true")]
     pub detect_duplicates: bool,
 }

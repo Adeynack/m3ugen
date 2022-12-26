@@ -25,17 +25,20 @@ fn main() -> Result<()> {
         Err(eyre!("Expecting the configuration file as argument.")),
         |config_file_path| Configuration::load_from_file(config_file_path),
     )?;
+    if config.debug {
+        if let Ok(pretty_config) = serde_json::to_string_pretty(&config) {
+            eprintln!("Loaded configuration:");
+            eprintln!("{pretty_config}");
+        }
+    }
 
     let scan_result = scan(&config)?;
 
-    #[allow(clippy::print_stdout)]
-    {
-        println!("Files found:");
-        scan_result
-            .found_file_paths
-            .iter()
-            .for_each(|f| println!("  - {f}"));
-    }
+    eprintln!("Files found:");
+    scan_result
+        .found_file_paths
+        .iter()
+        .for_each(|f| eprintln!("  - {f}"));
 
     Ok(())
 }

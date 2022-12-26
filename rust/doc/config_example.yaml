@@ -4,6 +4,9 @@ output: target/example.m3u
 # Will display detailed information
 verbose: true
 
+# Will display some debug information (mainly for development purposes)
+debug: true
+
 # Will randomize the output list
 randomize: true
 
