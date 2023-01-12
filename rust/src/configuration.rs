@@ -71,4 +71,16 @@ impl Configuration {
         self.verbose |= other.verbose;
         self
     }
+
+    pub fn verbose_print(&self, message: String) {
+        if self.verbose {
+            eprintln!("{message}");
+        }
+    }
+
+    pub fn debug_print(&self, message: String) {
+        if self.debug {
+            eprintln!("{message}");
+        }
+    }
 }

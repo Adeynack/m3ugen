@@ -21,14 +21,12 @@ fn main() -> Result<()> {
 
     let cli = Configuration::parse();
     let config = match cli.config {
-        Some(ref config_path) => Configuration::load_from_file(&config_path)?.merge(cli),
+        Some(ref config_path) => Configuration::load_from_file(config_path)?.merge(cli),
         None => cli,
     };
-    if config.debug {
-        if let Ok(pretty_config) = serde_json::to_string_pretty(&config) {
-            eprintln!("Loaded configuration:");
-            eprintln!("{pretty_config}");
-        }
+    if let Ok(pretty_config) = serde_json::to_string_pretty(&config) {
+        config.debug_print("Loaded configuration:".into());
+        config.debug_print(pretty_config);
     }
 
     let scan_result = scan(&config)?;
