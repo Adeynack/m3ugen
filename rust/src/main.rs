@@ -25,8 +25,8 @@ fn main() -> Result<()> {
         None => cli,
     };
     if let Ok(pretty_config) = serde_json::to_string_pretty(&config) {
-        config.debug_print("Loaded configuration:".into());
-        config.debug_print(pretty_config);
+        config.debug_print("Loaded configuration:");
+        config.debug_print(&pretty_config);
     }
 
     let scan_result = scan(&config)?;

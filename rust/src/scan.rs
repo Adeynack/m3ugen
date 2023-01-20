@@ -36,7 +36,7 @@ struct Scan<'a> {
 impl Scan<'_> {
     fn start(&mut self) -> Result<()> {
         self.configuration
-            .verbose_print("---=== m3u Playlist Generator ===---".into());
+            .verbose_print("---=== m3u Playlist Generator ===---");
 
         for folder in &self.configuration.scan {
             self.scan_folder(Path::new(folder))
@@ -47,7 +47,7 @@ impl Scan<'_> {
     }
 
     fn scan_folder(&mut self, folder_path: &Path) -> Result<()> {
-        self.configuration.verbose_print(format!(
+        self.configuration.verbose_print(&format!(
             "Scanning folder {}",
             folder_path.to_str().unwrap_or("?")
         ));

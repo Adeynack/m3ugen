@@ -72,13 +72,13 @@ impl Configuration {
         self
     }
 
-    pub fn verbose_print(&self, message: String) {
+    pub fn verbose_print(&self, message: &str) {
         if self.verbose {
             eprintln!("{message}");
         }
     }
 
-    pub fn debug_print(&self, message: String) {
+    pub fn debug_print(&self, message: &str) {
         if self.debug {
             eprintln!("{message}");
         }
