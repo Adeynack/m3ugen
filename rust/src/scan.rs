@@ -17,6 +17,22 @@ impl ScanResult {
             excluded_extensions: HashSet::new(),
         }
     }
+
+    pub fn report(&self, config: &Configuration) {
+        if config.verbose {
+            config.verbose_print("Excluded extensions:");
+            self.excluded_extensions
+                .iter()
+                .for_each(|ext| config.verbose_print(&format!("  - {ext}")));
+        }
+    }
+
+    pub fn write_result(&self, config: &Configuration) {
+        match config.output {
+            Some(_) => todo!(),
+            None => self.found_file_paths.iter().for_each(|p| println!("{p}")),
+        }
+    }
 }
 
 pub fn scan(configuration: &Configuration) -> Result<ScanResult> {
@@ -58,18 +74,39 @@ impl Scan<'_> {
             if path.is_dir() {
                 self.scan_folder(&path)?;
             } else {
-                self.consider_file_path(&path)?;
+                self.consider_file_path(&path);
             }
         }
 
         Ok(())
     }
 
-    fn consider_file_path(&mut self, file_path: &Path) -> Result<()> {
-        let file_path_str = file_path
-            .to_str()
-            .ok_or(eyre!("unexpected 'None' file path"))?;
-        self.result.found_file_paths.push(file_path_str.to_string());
-        Ok(())
+    fn consider_file_path(&mut self, path: &Path) {
+        let path_str = path.to_string_lossy().to_string();
+        self.configuration
+            .debug_print(&format!("Considering file {path_str}"));
+        match path.extension().map(|e| e.to_string_lossy().to_string()) {
+            None => self.consider_file_without_extension(path_str),
+            Some(extension) => self.consider_file_with_extension(extension, path_str),
+        }
+    }
+
+    fn consider_file_without_extension(&mut self, path_str: String) {
+        if self.configuration.extensions.is_empty() {
+            self.result.found_file_paths.push(path_str);
+        } else {
+            self.configuration
+                .debug_print("Ignoring file without extension");
+        }
+    }
+
+    fn consider_file_with_extension(&mut self, extension: String, path_str: String) {
+        if self.configuration.extensions.contains(&extension) {
+            self.result.found_file_paths.push(path_str);
+        } else {
+            self.configuration
+                .debug_print(&format!("Ignoring file with extension '{extension}'"));
+            self.result.excluded_extensions.insert(extension);
+        }
     }
 }

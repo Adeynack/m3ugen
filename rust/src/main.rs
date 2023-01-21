@@ -20,12 +20,7 @@ fn main() -> Result<()> {
 
     let config = Configuration::load()?;
     let scan_result = scan(&config)?;
-
-    eprintln!("Files found:");
-    scan_result
-        .found_file_paths
-        .iter()
-        .for_each(|f| eprintln!("  - {f}"));
-
+    scan_result.report(&config);
+    scan_result.write_result(&config);
     Ok(())
 }
