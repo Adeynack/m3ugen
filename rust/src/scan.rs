@@ -21,9 +21,7 @@ impl ScanResult {
     pub fn report(&self, config: &Configuration) {
         if config.verbose {
             config.verbose_print("Excluded extensions:");
-            self.excluded_extensions
-                .iter()
-                .for_each(|ext| config.verbose_print(&format!("  - {ext}")));
+            self.excluded_extensions.iter().for_each(|ext| config.verbose_print(&format!("  - {ext}")));
         }
     }
 
@@ -51,24 +49,18 @@ struct Scan<'a> {
 
 impl Scan<'_> {
     fn start(&mut self) -> Result<()> {
-        self.configuration
-            .verbose_print("---=== m3u Playlist Generator ===---");
+        self.configuration.verbose_print("---=== m3u Playlist Generator ===---");
 
         for folder in &self.configuration.scan {
-            self.scan_folder(Path::new(folder))
-                .map_err(|e| eyre!("Unable to scan folder: {}", e))?;
+            self.scan_folder(Path::new(folder)).map_err(|e| eyre!("Unable to scan folder: {}", e))?;
         }
 
         Ok(())
     }
 
     fn scan_folder(&mut self, folder_path: &Path) -> Result<()> {
-        self.configuration.verbose_print(&format!(
-            "Scanning folder {}",
-            folder_path.to_str().unwrap_or("?")
-        ));
-        let read_dir = fs::read_dir(folder_path)
-            .map_err(|e| eyre!("Unable to read directory {:?}: {}", folder_path, e))?;
+        self.configuration.verbose_print(&format!("Scanning folder {}", folder_path.to_str().unwrap_or("?")));
+        let read_dir = fs::read_dir(folder_path).map_err(|e| eyre!("Unable to read directory {:?}: {}", folder_path, e))?;
         for entry in read_dir {
             let path = entry?.path();
             if path.is_dir() {
@@ -83,8 +75,7 @@ impl Scan<'_> {
 
     fn consider_file_path(&mut self, path: &Path) {
         let path_str = path.to_string_lossy().to_string();
-        self.configuration
-            .debug_print(&format!("Considering file {path_str}"));
+        self.configuration.debug_print(&format!("Considering file {path_str}"));
         match path.extension().map(|e| e.to_string_lossy().to_string()) {
             None => self.consider_file_without_extension(path_str),
             Some(extension) => self.consider_file_with_extension(extension, path_str),
@@ -95,8 +86,7 @@ impl Scan<'_> {
         if self.configuration.extensions.is_empty() {
             self.result.found_file_paths.push(path_str);
         } else {
-            self.configuration
-                .debug_print("Ignoring file without extension");
+            self.configuration.debug_print("Ignoring file without extension");
         }
     }
 
@@ -104,8 +94,7 @@ impl Scan<'_> {
         if self.configuration.extensions.contains(&extension) {
             self.result.found_file_paths.push(path_str);
         } else {
-            self.configuration
-                .debug_print(&format!("Ignoring file with extension '{extension}'"));
+            self.configuration.debug_print(&format!("Ignoring file with extension '{extension}'"));
             self.result.excluded_extensions.insert(extension);
         }
     }
