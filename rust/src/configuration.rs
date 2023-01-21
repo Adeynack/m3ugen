@@ -39,7 +39,7 @@ pub struct Configuration {
 
     /// Limits the maximum files in the playlist.
     #[arg(short, long)]
-    pub maximum: Option<i64>,
+    pub maximum: Option<u64>,
 
     /// Perform duplicate detection. By default: true.
     #[serde(default = "default_as_true")]
@@ -52,6 +52,25 @@ const fn default_as_true() -> bool {
 }
 
 impl Configuration {
+    /// Loads the configuration from the CLI, and if needed from a YAML file.
+    pub fn load() -> Result<Configuration> {
+        let cli = Self::parse().normalize();
+        let config = match cli.config {
+            Some(ref path) => Self::load_from_file(path)?.normalize().merge(cli),
+            None => cli,
+        };
+        if config.debug {
+            config.debug_print("Loaded configuration:");
+            config.debug_print(&serde_json::to_string_pretty(&config)?);
+        }
+        Ok(config)
+    }
+
+    pub fn normalize(mut self) -> Self {
+        self.extensions = self.extensions.iter().map(|e| e.to_lowercase()).collect();
+        self
+    }
+
     /// Loads the configuration from a YAML file.
     pub fn load_from_file(path: &str) -> Result<Self> {
         let config_content = fs::read_to_string(path)?;

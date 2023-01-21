@@ -1,7 +1,6 @@
 mod configuration;
 mod scan;
 
-use clap::Parser;
 use configuration::Configuration;
 use eyre::Result;
 use scan::scan;
@@ -19,16 +18,7 @@ use scan::scan;
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let cli = Configuration::parse();
-    let config = match cli.config {
-        Some(ref config_path) => Configuration::load_from_file(config_path)?.merge(cli),
-        None => cli,
-    };
-    if let Ok(pretty_config) = serde_json::to_string_pretty(&config) {
-        config.debug_print("Loaded configuration:");
-        config.debug_print(&pretty_config);
-    }
-
+    let config = Configuration::load()?;
     let scan_result = scan(&config)?;
 
     eprintln!("Files found:");
