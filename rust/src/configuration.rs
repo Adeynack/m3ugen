@@ -1,11 +1,14 @@
 use std::fs;
 
 use clap::Parser;
+use derive_builder::Builder;
+use eyre::eyre;
 use eyre::Result;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Parser)]
+#[derive(Debug, Serialize, Deserialize, Parser, Default, Builder)]
 #[command()]
+#[builder(default)]
 pub struct Configuration {
     /// Path to a YAML configuration file.
     #[serde(skip_deserializing)]
@@ -42,13 +45,8 @@ pub struct Configuration {
     pub maximum: Option<u64>,
 
     /// Perform duplicate detection. By default: true.
-    #[serde(default = "default_as_true")]
     #[arg(short, long)]
     pub detect_duplicates: bool,
-}
-
-const fn default_as_true() -> bool {
-    true
 }
 
 impl Configuration {
@@ -73,7 +71,7 @@ impl Configuration {
 
     /// Loads the configuration from a YAML file.
     pub fn load_from_file(path: &str) -> Result<Self> {
-        let config_content = fs::read_to_string(path)?;
+        let config_content = fs::read_to_string(path).map_err(|e| eyre!("Unable to load configuration file at {path} ({e})"))?;
         Ok(serde_yaml::from_str(&config_content)?)
     }
 

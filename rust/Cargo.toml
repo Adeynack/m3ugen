@@ -13,3 +13,4 @@ serde_yaml = "0.8"
 eyre = "0.6.8"
 color-eyre = "0.6"
 clap = { version = "4.0.32", features = ["derive"] }
+derive_builder = "0.12.0"

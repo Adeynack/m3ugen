@@ -1,9 +1,11 @@
 mod configuration;
 mod scan;
 
+use std::rc::Rc;
+
 use configuration::Configuration;
 use eyre::Result;
-use scan::scan;
+use scan::Scan;
 
 #[warn(clippy::suspicious)]
 #[warn(clippy::complexity)]
@@ -18,8 +20,8 @@ use scan::scan;
 fn main() -> Result<()> {
     color_eyre::install()?;
 
-    let config = Configuration::load()?;
-    let scan_result = scan(&config)?;
+    let config = Rc::new(Configuration::load()?);
+    let scan_result = Scan::scan(Rc::clone(&config))?;
     scan_result.report(&config);
     scan_result.write_result(&config);
     Ok(())

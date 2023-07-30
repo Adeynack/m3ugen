@@ -1,6 +1,7 @@
 use crate::configuration::Configuration;
 use eyre::eyre;
 use eyre::Result;
+use std::rc::Rc;
 use std::{collections::HashSet, fs, path::Path};
 
 #[derive(Debug)]
@@ -33,26 +34,28 @@ impl ScanResult {
     }
 }
 
-pub fn scan(configuration: &Configuration) -> Result<ScanResult> {
-    let mut scan_session = Scan {
-        result: ScanResult::new(),
-        configuration,
-    };
-    scan_session.start()?;
-    Ok(scan_session.result)
-}
-
-struct Scan<'a> {
-    configuration: &'a Configuration,
+pub struct Scan {
+    configuration: Rc<Configuration>,
     result: ScanResult,
 }
 
-impl Scan<'_> {
+impl Scan {
+    pub fn scan(configuration: Rc<Configuration>) -> Result<ScanResult> {
+        let mut scan_session = Scan {
+            result: ScanResult::new(),
+            configuration,
+        };
+        scan_session.start()?;
+        Ok(scan_session.result)
+    }
+
     fn start(&mut self) -> Result<()> {
         self.configuration.verbose_print("---=== m3u Playlist Generator ===---");
 
-        for folder in &self.configuration.scan {
-            self.scan_folder(Path::new(folder)).map_err(|e| eyre!("Unable to scan folder: {}", e))?;
+        // TODO: Once `configuration` uses `str` instead of `String`, see if that `.clone` can be avoided.
+        for folder in (*self.configuration).scan.clone() {
+            let path = Path::new(&folder);
+            self.scan_folder(path).map_err(|e| eyre!("Unable to scan folder: {e}"))?;
         }
 
         Ok(())
@@ -97,5 +100,41 @@ impl Scan<'_> {
             self.configuration.debug_print(&format!("Ignoring file with extension '{extension}'"));
             self.result.excluded_extensions.insert(extension);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{error::Error, rc::Rc};
+
+    use crate::{configuration::ConfigurationBuilder, scan::Scan};
+
+    #[test]
+    fn it_scans_folders() -> Result<(), Box<dyn Error>> {
+        let configuration = Rc::new(
+            ConfigurationBuilder::default()
+                .scan(vec!["./doc/test_folder_to_scan/foo".to_string(), "./doc/test_folder_to_scan/bar".to_string()])
+                .extensions(vec!["mp4".to_string(), "mpg".to_string()])
+                .build()?,
+        );
+        let result = Scan::scan(configuration).unwrap();
+        let mut sorted_found_file_paths = result.found_file_paths.clone();
+        sorted_found_file_paths.sort();
+
+        let mut expected_found_file_paths = vec![
+            "./doc/test_folder_to_scan/bar/n.mpg".to_string(),
+            "./doc/test_folder_to_scan/bar/o.mpg".to_string(),
+            "./doc/test_folder_to_scan/bar/p.mp4".to_string(),
+            "./doc/test_folder_to_scan/foo/subfoo/x.mp4".to_string(),
+            "./doc/test_folder_to_scan/foo/subfoo/z.mpg".to_string(),
+            "./doc/test_folder_to_scan/foo/a.mp4".to_string(),
+            "./doc/test_folder_to_scan/foo/b.mp4".to_string(),
+            "./doc/test_folder_to_scan/foo/c.mpg".to_string(),
+        ];
+        expected_found_file_paths.sort();
+
+        assert_eq!(sorted_found_file_paths.len(), expected_found_file_paths.len());
+        assert_eq!(sorted_found_file_paths, expected_found_file_paths);
+        Ok(())
     }
 }
