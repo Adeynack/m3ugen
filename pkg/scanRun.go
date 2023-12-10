@@ -42,7 +42,7 @@ func Start(config *m3ugen.Config) (*ScanRun, error) {
 		Config:          config,
 		FoundFilesPaths: make([]string, 0, initialFoundFilesPathCapacity),
 	}
-	if err != nil {
+	if err != nil { // TODO: Remove useless check. `err` is never initialized.
 		return nil, err
 	}
 

@@ -25,11 +25,9 @@ var (
 // todo: Test with no `output`
 
 func Test_FullConfigAndScan(t *testing.T) {
-	config := &m3ugen.Config{
-		Extensions:    []string{"mpg", "mp4"},
-		RandomizeList: false,
-		Verbose:       true,
-	}
+	config := m3ugen.NewDefaultConfig()
+	config.Extensions = []string{"mpg", "mp4"}
+	config.RandomizeList = false
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 8)
 		et := entriesTest{t, basePath, entries}
@@ -45,11 +43,10 @@ func Test_FullConfigAndScan(t *testing.T) {
 }
 
 func Test_FullConfigAndScan_Maximum3(t *testing.T) {
-	config := &m3ugen.Config{
-		Extensions:     []string{"mpg", "mp4"},
-		RandomizeList:  false,
-		MaximumEntries: 3,
-	}
+	config := m3ugen.NewDefaultConfig()
+	config.Extensions = []string{"mpg", "mp4"}
+	config.RandomizeList = false
+	config.MaximumEntries = 3
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 3)
 		et := entriesTest{t, basePath, entries}

@@ -10,9 +10,7 @@ jobs:
           go-version: '1.21'
           check-latest: true
           cache-dependency-path: go.sum
-      - name: Build
-        run: make build
-      - name: Lint
+      - name: Build & Lint
         run: make lint
       # - name: Test
       #   run: make test
