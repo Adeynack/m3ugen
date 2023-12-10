@@ -1,7 +1,7 @@
 package pkg
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"sync"
@@ -67,7 +67,7 @@ func (r *ScanRun) scanFolderWorker(
 			return
 		}
 		r.LogVerbose("[scanFolderWorker %d] Scanning %q", workerNumber, f)
-		files, err := ioutil.ReadDir(f)
+		files, err := os.ReadDir(f)
 		if err != nil {
 			errChan <- err
 		} else {
@@ -93,14 +93,8 @@ func (r *ScanRun) scanFolderWorker(
 func (r *ScanRun) manageErrorsWorker(errChan <-chan error) {
 	r.LogVerbose("[manageErrorsWorker] Start")
 	defer r.LogVerbose("[manageErrorsWorker] Done")
-	for {
-		select {
-		case err, ok := <-errChan:
-			if !ok {
-				return
-			}
-			r.LogVerbose("ERROR: %v", err)
-		}
+	for err := range errChan {
+		r.LogVerbose("ERROR: %v", err)
 	}
 }
 
@@ -125,14 +119,8 @@ func (r *ScanRun) receiveFilesWorkerPlain(
 ) {
 	r.LogVerbose("[receiveFilesWorkerPlain] Start")
 	defer r.LogVerbose("[receiveFilesWorkerPlain] Done")
-	for {
-		select {
-		case f, ok := <-filesToConsiderChan:
-			if !ok {
-				return
-			}
-			foundFileChan <- f
-		}
+	for f := range filesToConsiderChan {
+		foundFileChan <- f
 	}
 }
 
@@ -144,34 +132,28 @@ func (r *ScanRun) receiveFilesWorkerWithExtensionFilter(
 	r.LogVerbose("[receiveFilesWorkerWithExtensionFilter] Start")
 	defer r.LogVerbose("[receiveFilesWorkerWithExtensionFilter] Done")
 	r.FoundExtensions = make(map[string]bool)
-	for {
-		select {
-		case fullPath, ok := <-filesToConsiderChan:
-			if !ok {
-				return
-			}
-			matches := regexGetFileExtension.FindStringSubmatch(fullPath)
-			currentFileExtension := ""
-			if len(matches) > 1 {
-				currentFileExtension = matches[len(matches)-1]
-			}
-			extensionExcluded := true
-			for _, configuredExtension := range r.Config.Extensions {
-				if strings.EqualFold(configuredExtension, currentFileExtension) {
-					//r.LogVerbose(
-					//	"File %q matches configured extension %q and is being considered",
-					//	fullPath, configuredExtension)
-					foundFileChan <- fullPath
-					extensionExcluded = false
-					break
-				}
-			}
-			if extensionExcluded {
+	for fullPath := range filesToConsiderChan {
+		matches := regexGetFileExtension.FindStringSubmatch(fullPath)
+		currentFileExtension := ""
+		if len(matches) > 1 {
+			currentFileExtension = matches[len(matches)-1]
+		}
+		extensionExcluded := true
+		for _, configuredExtension := range r.Config.Extensions {
+			if strings.EqualFold(configuredExtension, currentFileExtension) {
 				//r.LogVerbose(
-				//	"File %q does not match any configured extension and is being ignored",
-				//	fullPath)
-				excludedExtensionChan <- currentFileExtension
+				//	"File %q matches configured extension %q and is being considered",
+				//	fullPath, configuredExtension)
+				foundFileChan <- fullPath
+				extensionExcluded = false // TODO: Inline `if` and get rid of this variable
+				break
 			}
+		}
+		if extensionExcluded {
+			//r.LogVerbose(
+			//	"File %q does not match any configured extension and is being ignored",
+			//	fullPath)
+			excludedExtensionChan <- currentFileExtension
 		}
 	}
 }
@@ -201,13 +183,7 @@ func (r *ScanRun) appendFoundFileWorker(foundFileChan <-chan string) {
 func (r *ScanRun) appendExcludedExtensionWorker(excludedExtensionChan <-chan string) {
 	r.LogVerbose("[appendExcludedExtensionWorker] Start")
 	defer r.LogVerbose("[appendExcludedExtensionWorker] Done")
-	for {
-		select {
-		case ext, ok := <-excludedExtensionChan:
-			if !ok {
-				return
-			}
-			r.FoundExtensions[ext] = false
-		}
+	for ext := range excludedExtensionChan {
+		r.FoundExtensions[ext] = false
 	}
 }

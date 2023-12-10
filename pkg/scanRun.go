@@ -28,7 +28,7 @@ type ScanRun struct {
 }
 
 var (
-	regexGetFileExtension = regexp.MustCompile("^.*\\.(.*)$")
+	regexGetFileExtension = regexp.MustCompile(`^.*\.(.*)$`)
 )
 
 // Start begins the process of scanning and generating the playlist.

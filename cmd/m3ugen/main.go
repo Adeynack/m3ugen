@@ -2,15 +2,15 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
+
 	"github.com/adeynack/m3ugen"
 	"github.com/adeynack/m3ugen/pkg"
 	"github.com/ghodss/yaml"
-	"io/ioutil"
-	"log"
 )
 
 func main() {
-
 	flag.Parse()
 	configurationFile := flag.Arg(0)
 
@@ -23,14 +23,13 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	_, err = pkg.Start(conf)
-	if err != nil {
+	if _, err = pkg.Start(conf); err != nil {
 		log.Fatalln(err)
 	}
 }
 
 func loadConfiguration(configurationFile string) (*m3ugen.Config, error) {
-	content, err := ioutil.ReadFile(configurationFile)
+	content, err := os.ReadFile(configurationFile)
 	if err != nil {
 		return nil, err
 	}
