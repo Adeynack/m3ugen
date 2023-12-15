@@ -3,11 +3,11 @@ package pkg
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"math/rand"
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/adeynack/m3ugen"
 )
@@ -25,6 +25,9 @@ type ScanRun struct {
 	// FoundExtensions is a list of observed extensions. Value is true when
 	// the extension was considered and false when excluded.
 	FoundExtensions map[string]bool
+
+	verbose func(f string, args ...any)
+	debug   func(f string, args ...any)
 }
 
 var (
@@ -33,21 +36,14 @@ var (
 
 // Start begins the process of scanning and generating the playlist.
 func Start(config *m3ugen.Config) (*ScanRun, error) {
-	//if config.Verbose {
-	//	fmt.Printf("Starting scan & generate process using config %+v\n", config)
-	//}
-
-	var err error
 	r := &ScanRun{
 		Config:          config,
 		FoundFilesPaths: make([]string, 0, initialFoundFilesPathCapacity),
 	}
-	if err != nil { // TODO: Remove useless check. `err` is never initialized.
-		return nil, err
-	}
+	r.initializeVerboseAndDebugOutputs()
+	r.debug("Starting scan & generate process using config %+v", config)
 
-	err = r.scan()
-	if err != nil {
+	if err := r.scan(); err != nil {
 		return nil, err
 	}
 
@@ -55,22 +51,33 @@ func Start(config *m3ugen.Config) (*ScanRun, error) {
 		r.detectDuplicates()
 	}
 
-	err = r.writePlaylist()
-	if err != nil {
+	if err := r.writePlaylist(); err != nil {
 		return nil, err
 	}
 
-	if r.Config.Verbose {
-		r.logExcludedExtensions()
-	}
+	r.logExcludedExtensions()
 
 	return r, nil
 }
 
-// LogVerbose outputs a message only when `verbose` mode is activated.
-func (r *ScanRun) LogVerbose(format string, a ...interface{}) {
-	if r.Config.Verbose {
-		fmt.Println(fmt.Sprintf(format, a...))
+func (r *ScanRun) initializeVerboseAndDebugOutputs() {
+	// VERBOSE (implicit if 'Debug' activated)
+	if r.Config.Verbose || r.Config.Debug {
+		r.verbose = func(format string, a ...any) {
+			fmt.Fprintln(os.Stderr, fmt.Sprintf(format, a...))
+		}
+	} else {
+		r.verbose = func(format string, a ...any) {}
+	}
+
+	// DEBUG
+	if r.Config.Debug {
+		r.debug = func(format string, a ...any) {
+			line := fmt.Sprintf(format, a...)
+			log.Default().Println(line)
+		}
+	} else {
+		r.debug = func(format string, a ...any) {}
 	}
 }
 
@@ -78,23 +85,23 @@ func (r *ScanRun) writePlaylist() (err error) {
 	fileList := make([]string, len(r.FoundFilesPaths))
 	copy(fileList, r.FoundFilesPaths)
 	if r.Config.RandomizeList {
-		r.LogVerbose("Shuffling the found files")
+		r.verbose("Shuffling the found files")
 		shuffle(fileList)
 	}
 
-	foundFilesPathsCount := int64(len(r.FoundFilesPaths))
+	foundFilesPathsCount := len(r.FoundFilesPaths)
 	max := r.Config.MaximumEntries
 	if max < 1 {
-		r.LogVerbose("No maximum entries. Writing all %d files to output.", foundFilesPathsCount)
+		r.verbose("No maximum entries. Writing all %d files to output.", foundFilesPathsCount)
 		max = foundFilesPathsCount
 	} else if max > foundFilesPathsCount {
-		r.LogVerbose("Limited to %d. Writing all %d found files to output.", max, foundFilesPathsCount)
+		r.verbose("Limited to %d. Writing all %d found files to output.", max, foundFilesPathsCount)
 		max = foundFilesPathsCount
 	} else {
-		r.LogVerbose("Limited to %d. Writing the first %d found files to output.", max, max)
+		r.verbose("Limited to %d. Writing the first %d found files to output.", max, max)
 	}
 
-	r.LogVerbose("Writing playlist to %s", r.Config.OutputPath)
+	r.verbose("Writing playlist to %s", r.Config.OutputPath)
 	f, err := os.OpenFile(r.Config.OutputPath, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0644)
 	if err != nil {
 		return
@@ -117,6 +124,10 @@ func (r *ScanRun) writePlaylist() (err error) {
 }
 
 func (r *ScanRun) logExcludedExtensions() {
+	if !r.Config.Verbose {
+		return
+	}
+
 	excluded := make([]string, 0, len(r.FoundExtensions))
 	for extension, included := range r.FoundExtensions {
 		if !included {
@@ -124,11 +135,11 @@ func (r *ScanRun) logExcludedExtensions() {
 		}
 	}
 	excludedList := strings.Join(excluded, ", ")
-	r.LogVerbose("Extensions not considered: %s", excludedList)
+	r.verbose("Extensions not considered: %s", excludedList)
 }
 
 func (r *ScanRun) detectDuplicates() {
-	r.LogVerbose("Detecting duplicates")
+	r.verbose("Detecting duplicates")
 	fileCounter := make(map[string]int)
 	for _, f := range r.FoundFilesPaths {
 		c, ok := fileCounter[f]
@@ -140,16 +151,13 @@ func (r *ScanRun) detectDuplicates() {
 	duplicatesCount := 0
 	for f, c := range fileCounter {
 		if c > 1 {
-			r.LogVerbose("File %q is present %d times in the search", f, c)
+			r.verbose("File %q is present %d times in the search", f, c)
 			duplicatesCount++
 		}
 	}
-	r.LogVerbose("%d files were detected as duplicates", duplicatesCount)
+	r.verbose("%d files were detected as duplicates", duplicatesCount)
 }
 
-func shuffle(a []string) {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	r.Shuffle(len(a), func(i, j int) {
-		a[i], a[j] = a[j], a[i]
-	})
+func shuffle[T any](a []T) {
+	rand.Shuffle(len(a), func(i, j int) { a[i], a[j] = a[j], a[i] })
 }

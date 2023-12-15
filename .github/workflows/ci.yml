@@ -1,3 +1,4 @@
+name: Tests & Lint
 on: [push]
 jobs:
   go:

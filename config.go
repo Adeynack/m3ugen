@@ -5,6 +5,8 @@ type Config struct {
 	// If the detailed information should be outputted to the
 	// console as it is scanning and generating the playlist.
 	Verbose bool `json:"verbose"`
+	// Debug indicates if detailed debug information should be outputted to the console.
+	Debug bool `json:"debug"`
 	// The path of the output playlist.
 	OutputPath string `json:"output"`
 	// The list of folders to scan for files.
@@ -15,7 +17,7 @@ type Config struct {
 	// scanned (false) or in a randomised way (true).
 	RandomizeList bool `json:"randomize"`
 	// Maximum entries to output in the playlist -1 means "none".
-	MaximumEntries int64 `json:"maximum_entries"`
+	MaximumEntries int `json:"maximum_entries"`
 	// If the tool should report duplicate entries in the detected files
 	// (the configured path could be duplicates or include one another).
 	DetectDuplicates bool `json:"detect_duplicates"`
@@ -29,6 +31,7 @@ type Config struct {
 func NewDefaultConfig() *Config {
 	return &Config{
 		Verbose:             false,
+		Debug:               false,
 		OutputPath:          "",
 		ScanFolders:         nil,
 		Extensions:          nil,

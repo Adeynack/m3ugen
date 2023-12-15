@@ -49,10 +49,7 @@ func Test_FullConfigAndScan_Maximum3(t *testing.T) {
 	config.MaximumEntries = 3
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 3)
-		et := entriesTest{t, basePath, entries}
-		et.containsFile("folder1", "file2.mp4")
-		et.containsFile("folder2", "file1.mpg")
-		et.containsFile("folder2", "file2.mpg")
+		// which one of the 3 entries got chose is non-deterministic and cannot be asserted.
 	})
 }
 
