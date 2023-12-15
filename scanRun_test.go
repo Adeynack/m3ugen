@@ -3,13 +3,13 @@ package m3ugen
 import (
 	"bufio"
 	"fmt"
-	"github.com/adeynack/m3ugen"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -18,16 +18,31 @@ const (
 
 var (
 	currentTime = time.Now()
-	currentId   = int32(0)
+	currentID   = int32(0)
 )
 
 // todo: Test with no `output`
 
-func Test_FullConfigAndScan(t *testing.T) {
-	config := &m3ugen.Config{
-		Extensions:    []string{"mpg", "mp4"},
-		RandomizeList: false,
+func Test_InvalidConfig_MissingOutputFilePath(t *testing.T) {
+	config := &Config{}
+	_, err := Start(config)
+	if assert.Error(t, err) {
+		assert.Equal(t, "configuration requires an output file path (OutputPath)", err.Error())
 	}
+}
+
+func Test_InvalidConfig_MissingFoldersToScan(t *testing.T) {
+	config := &Config{OutputPath: "foo.m3u"}
+	_, err := Start(config)
+	if assert.Error(t, err) {
+		assert.Equal(t, "configuration requires at least one folder to scan (ScanFolders)", err.Error())
+	}
+}
+
+func Test_FullConfigAndScan(t *testing.T) {
+	config := NewDefaultConfig()
+	config.Extensions = []string{"mpg", "mp4"}
+	config.RandomizeList = false
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 8)
 		et := entriesTest{t, basePath, entries}
@@ -43,24 +58,20 @@ func Test_FullConfigAndScan(t *testing.T) {
 }
 
 func Test_FullConfigAndScan_Maximum3(t *testing.T) {
-	config := &m3ugen.Config{
-		Extensions:    []string{"mpg", "mp4"},
-		RandomizeList: false,
-		MaximumEntries:3,
-	}
+	config := NewDefaultConfig()
+	config.Extensions = []string{"mpg", "mp4"}
+	config.RandomizeList = false
+	config.MaximumEntries = 3
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 3)
-		et := entriesTest{t, basePath, entries}
-		et.containsFile("folder1", "file2.mp4")
-		et.containsFile("folder2", "file1.mpg")
-		et.containsFile("folder2", "file2.mpg")
+		// which one of the 3 entries got chose is non-deterministic and cannot be asserted.
 	})
 }
 
 type entriesTest struct {
-	t *testing.T
+	t        *testing.T
 	basePath string
-	entries []string
+	entries  []string
 }
 
 func (t *entriesTest) containsFile(expectedPathParts ...string) {
@@ -78,11 +89,11 @@ type TestFolderStructure struct {
 func withTestFolder(
 	t *testing.T,
 	testStructure *TestFolderStructure,
-	testConfiguration *m3ugen.Config,
+	testConfiguration *Config,
 	testFunc func(t *testing.T, basePath string, entries []string),
 ) {
 	// CREATE FOLDERS AND FILES FOR TESTING
-	uid := atomic.AddInt32(&currentId, 1)
+	uid := atomic.AddInt32(&currentID, 1)
 	testFolderName := filepath.Join(
 		os.TempDir(),
 		fmt.Sprintf("%s_%d_%d", testDirectoryPath, currentTime.Unix(), uid))
@@ -105,7 +116,7 @@ func withTestFolder(
 	// SCAN AND GENERATE M3U
 	testConfiguration.ScanFolders = []string{testFolderName}
 	testConfiguration.OutputPath = filepath.Join(testFolderName, "playlist.m3u")
-	m3ugen.Start(testConfiguration)
+	Start(testConfiguration)
 
 	// PARSE THE GENERATED M3U
 	entries, err := parseGeneratedPlaylist(testConfiguration.OutputPath)

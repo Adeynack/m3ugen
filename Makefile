@@ -1,8 +1,27 @@
 build:
-	GO111MODULE=on go build -o bin/m3ugen ./cmd/m3ugen/*.go
+	go build -o bin/m3ugen ./cmd/m3ugen/*.go
+
+b: build
 
 clean:
-	GO111MODULE=on go clean -i -cache -testcache ./...
+	go clean -cache -testcache
+
+c: clean
 
 install:
-	GO111MODULE=on go install ./cmd/m3ugen
+	go install ./cmd/m3ugen
+
+i: install
+
+test:
+	go test ./...
+
+t: test
+
+ct: clean test
+
+lint: build
+	go vet ./...
+	go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+
+check: clean build lint test

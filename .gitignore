@@ -11,7 +11,8 @@
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
-// IDEs
+# IDEs
 .idea
-// Outputs (see Makefile)
+# Outputs (see Makefile)
 bin
+*.m3u
