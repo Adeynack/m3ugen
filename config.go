@@ -1,5 +1,9 @@
 package m3ugen
 
+import (
+	"fmt"
+)
+
 // Config is the configuration a playlist generation needs to be performed.
 type Config struct {
 	// If the detailed information should be outputted to the
@@ -17,7 +21,7 @@ type Config struct {
 	// scanned (false) or in a randomised way (true).
 	RandomizeList bool `json:"randomize"`
 	// Maximum entries to output in the playlist -1 means "none".
-	MaximumEntries int `json:"maximum_entries"`
+	MaximumEntries int `json:"maximum"`
 	// If the tool should report duplicate entries in the detected files
 	// (the configured path could be duplicates or include one another).
 	DetectDuplicates bool `json:"detect_duplicates"`
@@ -40,4 +44,14 @@ func NewDefaultConfig() *Config {
 		ScanFolderWorkers:   4,
 		ReceiveFilesWorkers: 1,
 	}
+}
+
+func (c *Config) Validate() error {
+	if c.OutputPath == "" { // TODO: Make it so no output path = output to stdout
+		return fmt.Errorf("configuration requires an output file path (OutputPath)")
+	}
+	if len(c.ScanFolders) < 1 {
+		return fmt.Errorf("configuration requires at least one folder to scan (ScanFolders)")
+	}
+	return nil
 }

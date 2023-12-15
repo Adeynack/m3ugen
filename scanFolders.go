@@ -1,4 +1,4 @@
-package pkg
+package m3ugen
 
 import (
 	"os"

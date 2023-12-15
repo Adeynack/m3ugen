@@ -1,4 +1,6 @@
-package pkg
+package m3ugen
+
+import "math/rand"
 
 // FirstErr returns the first errors in a list.
 func FirstErr(first, second error, others ...error) error {
@@ -14,4 +16,9 @@ func FirstErr(first, second error, others ...error) error {
 		}
 	}
 	return nil
+}
+
+// ShuffleSlice takes a slice of any type and randomize the order of its content.
+func ShuffleSlice[T any](a []T) {
+	rand.Shuffle(len(a), func(i, j int) { a[i], a[j] = a[j], a[i] })
 }

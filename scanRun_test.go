@@ -1,4 +1,4 @@
-package pkg
+package m3ugen
 
 import (
 	"bufio"
@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/adeynack/m3ugen"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -24,8 +23,24 @@ var (
 
 // todo: Test with no `output`
 
+func Test_InvalidConfig_MissingOutputFilePath(t *testing.T) {
+	config := &Config{}
+	_, err := Start(config)
+	if assert.Error(t, err) {
+		assert.Equal(t, "configuration requires an output file path (OutputPath)", err.Error())
+	}
+}
+
+func Test_InvalidConfig_MissingFoldersToScan(t *testing.T) {
+	config := &Config{OutputPath: "foo.m3u"}
+	_, err := Start(config)
+	if assert.Error(t, err) {
+		assert.Equal(t, "configuration requires at least one folder to scan (ScanFolders)", err.Error())
+	}
+}
+
 func Test_FullConfigAndScan(t *testing.T) {
-	config := m3ugen.NewDefaultConfig()
+	config := NewDefaultConfig()
 	config.Extensions = []string{"mpg", "mp4"}
 	config.RandomizeList = false
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
@@ -43,7 +58,7 @@ func Test_FullConfigAndScan(t *testing.T) {
 }
 
 func Test_FullConfigAndScan_Maximum3(t *testing.T) {
-	config := m3ugen.NewDefaultConfig()
+	config := NewDefaultConfig()
 	config.Extensions = []string{"mpg", "mp4"}
 	config.RandomizeList = false
 	config.MaximumEntries = 3
@@ -74,7 +89,7 @@ type TestFolderStructure struct {
 func withTestFolder(
 	t *testing.T,
 	testStructure *TestFolderStructure,
-	testConfiguration *m3ugen.Config,
+	testConfiguration *Config,
 	testFunc func(t *testing.T, basePath string, entries []string),
 ) {
 	// CREATE FOLDERS AND FILES FOR TESTING

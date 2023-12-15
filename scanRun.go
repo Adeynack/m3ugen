@@ -1,15 +1,12 @@
-package pkg
+package m3ugen
 
 import (
 	"bufio"
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/adeynack/m3ugen"
 )
 
 const (
@@ -18,7 +15,7 @@ const (
 
 // ScanRun represents a scan & playlist generation process.
 type ScanRun struct {
-	Config *m3ugen.Config
+	Config *Config
 
 	FoundFilesPaths []string
 
@@ -35,7 +32,11 @@ var (
 )
 
 // Start begins the process of scanning and generating the playlist.
-func Start(config *m3ugen.Config) (*ScanRun, error) {
+func Start(config *Config) (*ScanRun, error) {
+	if err := config.Validate(); err != nil {
+		return nil, err
+	}
+
 	r := &ScanRun{
 		Config:          config,
 		FoundFilesPaths: make([]string, 0, initialFoundFilesPathCapacity),
@@ -86,7 +87,7 @@ func (r *ScanRun) writePlaylist() (err error) {
 	copy(fileList, r.FoundFilesPaths)
 	if r.Config.RandomizeList {
 		r.verbose("Shuffling the found files")
-		shuffle(fileList)
+		ShuffleSlice(fileList)
 	}
 
 	foundFilesPathsCount := len(r.FoundFilesPaths)
@@ -156,8 +157,4 @@ func (r *ScanRun) detectDuplicates() {
 		}
 	}
 	r.verbose("%d files were detected as duplicates", duplicatesCount)
-}
-
-func shuffle[T any](a []T) {
-	rand.Shuffle(len(a), func(i, j int) { a[i], a[j] = a[j], a[i] })
 }

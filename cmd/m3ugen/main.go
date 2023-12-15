@@ -2,29 +2,30 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/adeynack/m3ugen"
-	"github.com/adeynack/m3ugen/pkg"
 	"github.com/ghodss/yaml"
 )
 
 func main() {
 	flag.Parse()
 	configurationFile := flag.Arg(0)
-
 	if configurationFile == "" {
-		log.Fatalln("No configuration file provided")
+		fmt.Fprintln(os.Stderr, "no configuration file provided")
+		os.Exit(1)
 	}
 
 	conf, err := loadConfiguration(configurationFile)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Fprintf(os.Stderr, "error loading configuration: %v\n", err)
+		os.Exit(1)
 	}
 
-	if _, err = pkg.Start(conf); err != nil {
-		log.Fatalln(err)
+	if _, err = m3ugen.Start(conf); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 
@@ -34,8 +35,7 @@ func loadConfiguration(configurationFile string) (*m3ugen.Config, error) {
 		return nil, err
 	}
 	conf := m3ugen.NewDefaultConfig()
-	err = yaml.Unmarshal(content, conf)
-	if err != nil {
+	if err = yaml.Unmarshal(content, conf); err != nil {
 		return nil, err
 	}
 	return conf, nil
