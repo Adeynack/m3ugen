@@ -29,6 +29,8 @@ type Config struct {
 	ScanFolderWorkers int `json:"scan_folder_workers"`
 	// Number of workers filtering the files.
 	ReceiveFilesWorkers int `json:"receive_files_workers"`
+	// Buffer size of the various Go channels used while scanning.
+	ChannelsBufferSize int `json:"channels_buffer_size"`
 }
 
 // NewDefaultConfig creates a configuration with default values.
@@ -40,9 +42,10 @@ func NewDefaultConfig() *Config {
 		ScanFolders:         nil,
 		Extensions:          nil,
 		RandomizeList:       false,
-		MaximumEntries:      -1,
+		MaximumEntries:      0, // no maximum
 		ScanFolderWorkers:   4,
-		ReceiveFilesWorkers: 1,
+		ReceiveFilesWorkers: 4,
+		ChannelsBufferSize:  1024,
 	}
 }
 

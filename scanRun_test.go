@@ -3,6 +3,7 @@ package m3ugen
 import (
 	"bufio"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -64,7 +65,34 @@ func Test_FullConfigAndScan_Maximum3(t *testing.T) {
 	config.MaximumEntries = 3
 	withTestFolder(t, testStructure01, config, func(t *testing.T, basePath string, entries []string) {
 		assert.Len(t, entries, 3)
-		// which one of the 3 entries got chose is non-deterministic and cannot be asserted.
+		// which one of the 3 entries got chosen is non-deterministic and cannot be asserted.
+	})
+}
+
+func Test_DeepFolderStructure(t *testing.T) {
+	// This test proved the following flaw: If `folderToScanChan` is not of a dynamic size (buffered or unbuffered),
+	// pass a certain folder number, a deadlock occurs. Solution was to introduce `dynchan`.
+	config := NewDefaultConfig()
+	config.ReceiveFilesWorkers = 4
+	config.ScanFolderWorkers = 4
+	config.Extensions = []string{"mpg", "mp4"}
+
+	filesPerFolder := 5
+	foldersPerFolder := 5
+	folderDepth := 5
+
+	// Dynamically calculating the expected number of found files
+	// in order to be able to play with the 3 parameters above for
+	// different testing conditions.
+	totalFolderCount := 1
+	for b := folderDepth; b > 0; b-- {
+		totalFolderCount += int(math.Pow(float64(foldersPerFolder), float64(b)))
+	}
+	totalFiles := totalFolderCount * filesPerFolder
+
+	structure := generateDynamicStructure("", uint(filesPerFolder), uint(foldersPerFolder), uint(folderDepth))
+	withTestFolder(t, structure, config, func(t *testing.T, basePath string, entries []string) {
+		assert.Equal(t, totalFiles, int(len(entries)))
 	})
 }
 
@@ -172,6 +200,28 @@ func createStructure(
 		}
 	}
 	return nil
+}
+
+func generateDynamicStructure(name string, filesPerFolder uint, foldersPerFolder uint, folderDepth uint) *TestFolderStructure {
+	folder := &TestFolderStructure{Name: name}
+
+	folder.Files = make([]string, filesPerFolder)
+	for i := uint(0); i < filesPerFolder; i++ {
+		folder.Files[i] = fmt.Sprintf("file_%04d.mpg", i)
+	}
+
+	if folderDepth > 0 {
+		folder.Folders = make([]*TestFolderStructure, foldersPerFolder)
+		for i := uint(0); i < foldersPerFolder; i++ {
+			folder.Folders[i] = generateDynamicStructure(
+				fmt.Sprintf("folder_%04d", i),
+				filesPerFolder, foldersPerFolder, folderDepth-1)
+		}
+	} else {
+		folder.Folders = make([]*TestFolderStructure, 0)
+	}
+
+	return folder
 }
 
 var (

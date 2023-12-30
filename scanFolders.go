@@ -6,6 +6,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/adeynack/m3ugen/pkg/dynchan"
 )
 
 const (
@@ -13,48 +15,74 @@ const (
 )
 
 func (r *ScanRun) scan() error {
-	folderToScanChan := make(chan string, 32)
-	defer close(folderToScanChan)
-	filesToConsiderChan := make(chan string, 1024)
+	folderToScanChanIn, folderToScanChanOut := dynchan.NewBuffered[string](uint(r.Config.ChannelsBufferSize))
+	defer close(folderToScanChanIn)
+
 	errChan := make(chan error)
-	defer close(errChan)
-	foundFileChan := make(chan string)
-	defer close(foundFileChan)
-	excludedExtensionChan := make(chan string)
-	defer close(excludedExtensionChan)
+	foundFileChan := make(chan string, r.Config.ChannelsBufferSize)
+	excludedExtensionChan := make(chan string, r.Config.ChannelsBufferSize)
 
-	go r.appendFoundFileWorker(foundFileChan)
-	go r.appendExcludedExtensionWorker(excludedExtensionChan)
-	go r.manageErrorsWorker(errChan)
-
-	receiveFilesWorkersWG := new(sync.WaitGroup)
-	receiveFilesWorkersWG.Add(r.Config.ReceiveFilesWorkers)
-	for i := 0; i < r.Config.ReceiveFilesWorkers; i++ {
-		go r.receiveFilesWorker(i, receiveFilesWorkersWG, filesToConsiderChan, foundFileChan, excludedExtensionChan)
-	}
-
-	// Start scan workers + Feed with folders to scan + Wait for their completion
-	foldersToScanWG := new(sync.WaitGroup)
-	foldersToScanWG.Add(len(r.Config.ScanFolders))
-	for i := 0; i < r.Config.ScanFolderWorkers; i++ {
-		go r.scanFolderWorker(i, folderToScanChan, filesToConsiderChan, errChan, foldersToScanWG)
-	}
-	for _, folder := range r.Config.ScanFolders {
-		folderToScanChan <- folder
-	}
-	foldersToScanWG.Wait()
+	miscWorkersWG := r.startWorkers(foundFileChan, excludedExtensionChan, errChan)
+	filesToConsiderChan, filesToConsiderWG := r.startFilesToConsiderWorkers(foundFileChan, excludedExtensionChan)
+	r.scanAllFolders(folderToScanChanIn, folderToScanChanOut, filesToConsiderChan, errChan)
 
 	// All folders are scanned. Close `filesToConsiderChan` and wait for the `receiveFilesWorker`s to complete.
 	close(filesToConsiderChan)
-	receiveFilesWorkersWG.Wait()
+	filesToConsiderWG.Wait()
+
+	// Close other channels and wait for goroutines to be done.
+	close(errChan)
+	close(foundFileChan)
+	close(excludedExtensionChan)
+	miscWorkersWG.Wait()
 
 	r.verbose("scan completed")
 	return nil
 }
 
+func (r *ScanRun) startWorkers(foundFileChan <-chan string, excludedExtensionChan <-chan string, errChan <-chan error) *sync.WaitGroup {
+	waitGroup := new(sync.WaitGroup)
+	waitGroup.Add(3)
+	go r.appendFoundFileWorker(waitGroup, foundFileChan)
+	go r.appendExcludedExtensionWorker(waitGroup, excludedExtensionChan)
+	go r.manageErrorsWorker(waitGroup, errChan)
+	return waitGroup
+}
+
+func (r *ScanRun) startFilesToConsiderWorkers(foundFileChan chan<- string, excludedExtensionChan chan<- string) (chan<- string, *sync.WaitGroup) {
+	filesToConsiderChan := make(chan string, r.Config.ChannelsBufferSize)
+	filesToConsiderWG := new(sync.WaitGroup)
+	filesToConsiderWG.Add(r.Config.ReceiveFilesWorkers)
+	for i := 0; i < r.Config.ReceiveFilesWorkers; i++ {
+		go r.receiveFilesWorker(i, filesToConsiderWG, filesToConsiderChan, foundFileChan, excludedExtensionChan)
+	}
+	return filesToConsiderChan, filesToConsiderWG
+}
+
+func (r *ScanRun) scanAllFolders(
+	folderToScanChanIn chan<- string,
+	folderToScanChanOut <-chan string,
+	filesToConsiderChan chan<- string,
+	errChan chan<- error,
+) {
+	// Start scan workers
+	waitGroup := new(sync.WaitGroup)
+	waitGroup.Add(len(r.Config.ScanFolders))
+	for i := 0; i < r.Config.ScanFolderWorkers; i++ {
+		go r.scanFolderWorker(i, folderToScanChanIn, folderToScanChanOut, filesToConsiderChan, errChan, waitGroup)
+	}
+	// Feed with folders to scan
+	for _, folder := range r.Config.ScanFolders {
+		folderToScanChanIn <- folder
+	}
+	// Wait for recursive completion
+	waitGroup.Wait()
+}
+
 func (r *ScanRun) scanFolderWorker(
 	workerNumber int,
-	folderToScanChan chan string,
+	folderToScanChanIn chan<- string,
+	folderToScanChanOut <-chan string,
 	filesToConsiderChan chan<- string,
 	errChan chan<- error,
 	foldersToScanWG *sync.WaitGroup,
@@ -62,20 +90,20 @@ func (r *ScanRun) scanFolderWorker(
 	r.verbose("[scanFolderWorker %d] Starting", workerNumber)
 	defer r.verbose("[scanFolderWorker %d] Done", workerNumber)
 	for {
-		f, ok := <-folderToScanChan
+		folderToScan, ok := <-folderToScanChanOut
 		if !ok {
 			return
 		}
-		r.verbose("[scanFolderWorker %d] Scanning %q", workerNumber, f)
-		files, err := os.ReadDir(f)
+		r.verbose("[scanFolderWorker %d] Scanning %q", workerNumber, folderToScan)
+		files, err := os.ReadDir(folderToScan)
 		if err != nil {
 			errChan <- err
 		} else {
 			for _, file := range files {
-				path := path.Join(f, file.Name())
+				path := path.Join(folderToScan, file.Name())
 				if file.IsDir() {
 					foldersToScanWG.Add(1)
-					folderToScanChan <- path
+					folderToScanChanIn <- path
 				} else {
 					filesToConsiderChan <- path
 				}
@@ -85,7 +113,8 @@ func (r *ScanRun) scanFolderWorker(
 	}
 }
 
-func (r *ScanRun) manageErrorsWorker(errChan <-chan error) {
+func (r *ScanRun) manageErrorsWorker(waitGroup *sync.WaitGroup, errChan <-chan error) {
+	defer waitGroup.Done()
 	r.verbose("[manageErrorsWorker] Start")
 	defer r.verbose("[manageErrorsWorker] Done")
 	for err := range errChan {
@@ -128,6 +157,7 @@ func (r *ScanRun) receiveFilesWorkerWithExtensionFilter(
 ) {
 	r.verbose("[receiveFilesWorkerWithExtensionFilter %d] Start", workerNumber)
 	defer r.verbose("[receiveFilesWorkerWithExtensionFilter %d] Done", workerNumber)
+
 	r.FoundExtensions = make(map[string]bool)
 	for fullPath := range filesToConsiderChan {
 		r.debug("[receiveFilesWorkerWithExtensionFilter %d] Considering file: %s", workerNumber, fullPath)
@@ -154,7 +184,8 @@ func (r *ScanRun) receiveFilesWorkerWithExtensionFilter(
 	}
 }
 
-func (r *ScanRun) appendFoundFileWorker(foundFileChan <-chan string) {
+func (r *ScanRun) appendFoundFileWorker(waitGroup *sync.WaitGroup, foundFileChan <-chan string) {
+	defer waitGroup.Done()
 	r.verbose("[appendFoundFileWorker] Start")
 	defer r.verbose("[appendFoundFileWorker] Done")
 
@@ -176,7 +207,8 @@ func (r *ScanRun) appendFoundFileWorker(foundFileChan <-chan string) {
 	}
 }
 
-func (r *ScanRun) appendExcludedExtensionWorker(excludedExtensionChan <-chan string) {
+func (r *ScanRun) appendExcludedExtensionWorker(waitGroup *sync.WaitGroup, excludedExtensionChan <-chan string) {
+	defer waitGroup.Done()
 	r.verbose("[appendExcludedExtensionWorker] Start")
 	defer r.verbose("[appendExcludedExtensionWorker] Done")
 	for ext := range excludedExtensionChan {
